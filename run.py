@@ -12,6 +12,8 @@ import sys
 import os
 import time
 import traceback
+import optparse
+import requests
 
 try:
    os.environ["AWS_ACCESS_KEY_ID"]
@@ -19,6 +21,17 @@ try:
 except KeyError:
    print "Please set the environment variable FOO"
    sys.exit(1)
+
+parser = optparse.OptionParser("usage: %prog [options] arg1 arg2")
+
+
+uri = sys.argv[1]
+resp = requests.head(uri)
+if resp.status_code != 200:
+  print("File does not exist")
+  sys.exit(1)
+print resp.headers['content-length']
+
 
 def waitForState(obj, s):
   status = obj.update()
@@ -74,16 +87,22 @@ try:
   env.host_string = host_string
   env.key_filename = "temp/planetebs.pem"
   env.connection_attempts = 5
-  run("ls -lah")
   sudo("mkdir -p /mnt/planet")
   sudo("mkfs -t ext4 /dev/xvdh")
   sudo("mount /dev/xvdh /mnt/planet")
-  run("df -h /mnt/planet")
+  sudo("chown -R ubuntu:ubuntu /mnt/planet")
+  run("curl -s -o /mnt/planet/osm.pbf {0}".format(uri))
+  sudo("umount /mnt/planet")
 except:
   traceback.print_exc()
 finally:
   print "Closing Connections"
   disconnect_all()
+  if vol:
+    if vol.update() == "in-use":
+      print "Detaching volume"
+      vol.detach()
+      waitForState(vol, "available")
   if instance:
     print "Terminating instance"
     conn.terminate_instances(instance_ids=[instance.id])
