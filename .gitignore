@@ -1,0 +1,6 @@
+*.pem
+*.swp
+*.pyc
+venv
+ami/secrets.json
+.env
