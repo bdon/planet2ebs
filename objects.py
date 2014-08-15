@@ -32,10 +32,11 @@ class PbfSourceEbsCm(object):
     self.vol = None
 
   def __enter__(self):
-    self.conn.attach_volume(self.source.netloc, self.instance_id, "/dev/sdh")
-    self.vol = conn.get_all_volumes([self.netloc])[0]
+    self.vol = self.conn.get_all_volumes([self.source.netloc])[0]
+    self.vol.attach(self.instance_id, "/dev/sdh")
     waitForState(self.vol, 'in-use')
     self.fab.sudo("mkdir -p /mnt/pbfsource")
+    time.sleep(10) # Why???
     self.fab.sudo("mount /dev/xvdh /mnt/pbfsource")
     self.fab.sudo("chown -R ubuntu:ubuntu /mnt/pbfsource")
     return "/mnt/pbfsource" + self.source.path
@@ -119,10 +120,11 @@ class EbsArtifact(object):
 
 # one or more of these created each run.
 class NewArtifact(object):
-  def __init__(self, conn, instance, fab):
+  def __init__(self, conn, instance, fab, name):
     self.instance = instance
     self.fab = fab
     self.conn = conn
+    self.mountpoint = "/mnt/" + name
 
   def __enter__(self):
     self.vol = self.conn.create_volume(30, self.instance.placement)
@@ -131,14 +133,16 @@ class NewArtifact(object):
     #self.vol.add_tag("planet2ebs","pbf")
     #self.vol.add_tag("planet2ebs-source",uri)
     waitForState(self.vol, 'in-use')
-    self.fab.sudo("mkfs -t ext4 /dev/xvdg")
-    self.fab.sudo("mkdir -p /mnt/artifact")
-    self.fab.sudo("mount /dev/xvdg /mnt/artifact")
-    self.fab.sudo("chown -R ubuntu:ubuntu /mnt/artifact")
-    return EbsArtifact("/mnt/artifact",self.vol.id)
+    time.sleep(10) # Why???
+    self.fab.sudo("mkfs -t ext4 /dev/xvdg > /dev/null")
+    self.fab.sudo("mkdir -p " + self.mountpoint)
+    self.fab.sudo("mount /dev/xvdg " + self.mountpoint)
+    self.fab.sudo("chown -R ubuntu:ubuntu " + self.mountpoint)
+    return EbsArtifact(self.mountpoint,self.vol.id)
 
   def __exit__(self,type,value,traceback):
-    self.fab.sudo("umount /mnt/artifact")
+    self.fab.sudo("service postgresql stop") # idempotent
+    self.fab.sudo("umount " + self.mountpoint)
     print "Detaching volume"
     self.vol.detach()
     waitForState(self.vol, "available")

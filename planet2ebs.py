@@ -61,7 +61,7 @@ def doImport(conn, args):
     print "No mapping; Copying file to EBS volume..."
     with objects.Instance(conn, timestamp) as i:
       fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
-      with objects.NewArtifact(conn, i, fabric.api) as artifact:
+      with objects.NewArtifact(conn, i, fabric.api,"artifact") as artifact:
         with pbfsource.use(conn, fabric.api, i.id) as path:
           fabric.api.run("cp {0} {1}".format(path, artifact.mountpoint))
         print "Output: " + artifact.output()
@@ -74,16 +74,21 @@ def doImport(conn, args):
 
     with objects.Instance(conn, timestamp) as i:
       fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
-      with objects.NewArtifact(conn, i, fabric.api) as artifact:
+      with objects.NewArtifact(conn, i, fabric.api,"pgdata") as artifact:
         with pbfsource.use(conn, fabric.api, i.id) as path:
           fabric.api.put("pg_config/pg_hba.conf","/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
           fabric.api.put("pg_config/postgresql.conf","/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
-          fabric.api.put("pg_config/start_auto.conf","/etc/postgresql/9.3/main/start.conf",use_sudo=True)
+          fabric.api.put("pg_config/start_auto.conf","/etc/postgresql/9.3/main/start.conf",use_sudo=True) # Why?
+          fabric.api.put(mapping,"mapping.json")
           fabric.api.sudo("mv /var/lib/postgresql/9.3/main {0}".format(artifact.mountpoint))
           fabric.api.sudo("service postgresql start")
-          fabric.api.run("createdb osm")
-          fabric.api.run("psql osm -c 'CREATE EXTENSION postgis;'")
-          fabric.api.run("imposm3")
+          fabric.api.sudo("su postgres -c 'createuser -s importer'")
+          fabric.api.sudo("su postgres -c 'createdb osm -O importer'")
+          fabric.api.run("psql osm -U importer -c 'CREATE EXTENSION postgis;'")
+          fabric.api.run("imposm3 import -mapping={0} -read {1} -connection={2} -write -deployproduction -optimize".format(
+            "mapping.json",
+            path,
+            "postgis:///osm?host=/var/run/postgresql\&user=importer")) #this fucking kills me
           fabric.api.sudo("service postgresql stop")
         print "Output: " + artifact.output()
       disconnect_all()

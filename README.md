@@ -1,18 +1,18 @@
-planet2ebs - runs OpenStreetMap rendering databases for cheap on amazon.
+planet2ebs - OSM rendering on Amazon EC2
 
-
+* Caches and creates rendering databases in EBS volumes
+* Shut down database instances when you don't need them
 
 `ami` directory - builds the AMI used for these operations
 
-`planet2ebs http://example.com/planet.osm.pbf`
-`planet2ebs http://example.com/planet.osm.pbf mapping.json`
-`planet2ebs ebs://vol-234324234/planet.osm.pbf mapping.json`
-`planet2ebs start ebs://vol-123123/pgdata`
-`planet2ebs stop ebs://vol-123123/pgdata`
+`./planet2ebs.py import http://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf`
+`./planet2ebs.py import ebs://vol-f848d1fd/osm.pbf example-mapping.json`
 
-start/stop:
-ensure that the render user exists with the given password
-use pg_ctl to start the cluster.
+
+`./planet2ebs.py start ebs://vol-123123`
+
+
+`./planet2ebs.py ls`
 
 after running db, you will be able to connect to the psql database like this:
 psql 
