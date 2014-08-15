@@ -24,25 +24,26 @@ class PbfSourceHttpCm(object):
     pass
 
 class PbfSourceEbsCm(object):
-  def __init__(self,source,conn,fab,instance_id):
+  def __init__(self,source,conn,fab,instance_id,mountname):
     self.source = source
     self.fab = fab
     self.conn = conn
     self.instance_id = instance_id
     self.vol = None
+    self.mountname = mountname
 
   def __enter__(self):
     self.vol = self.conn.get_all_volumes([self.source.netloc])[0]
     self.vol.attach(self.instance_id, "/dev/sdh")
     waitForState(self.vol, 'in-use')
-    self.fab.sudo("mkdir -p /mnt/pbfsource")
+    self.fab.sudo("mkdir -p /mnt/" + self.mountname)
     time.sleep(10) # Why???
-    self.fab.sudo("mount /dev/xvdh /mnt/pbfsource")
-    self.fab.sudo("chown -R ubuntu:ubuntu /mnt/pbfsource")
-    return "/mnt/pbfsource" + self.source.path
+    self.fab.sudo("mount /dev/xvdh /mnt/" + self.mountname)
+    self.fab.sudo("chown -R ubuntu:ubuntu /mnt/" + self.mountname)
+    return "/mnt/" + self.mountname + self.source.path
 
   def __exit__(self,type,value,traceback):
-    self.fab.sudo("umount /mnt/pbfsource")
+    self.fab.sudo("umount /mnt/" + self.mountname)
     print "Detaching volume"
     if self.vol:
       self.vol.detach()
@@ -61,7 +62,7 @@ class PbfSource(object):
     if self.scheme == "http":
       return PbfSourceHttpCm(self,fab)
     elif self.scheme == "ebs":
-      return PbfSourceEbsCm(self,conn,fab,instance_id)
+      return PbfSourceEbsCm(self,conn,fab,instance_id,"pbfsource")
 
   def artifacts(self):
     pass
@@ -95,6 +96,7 @@ class Instance:
     self.kp.save(".")
     self.sg = self.conn.create_security_group(tmpnam,"Temporary security group for planet2ebs")
     self.conn.authorize_security_group(group_name=tmpnam,from_port=22,to_port=22,cidr_ip="0.0.0.0/0",ip_protocol="tcp")
+    self.conn.authorize_security_group(group_name=tmpnam,from_port=5432,to_port=5432,cidr_ip="0.0.0.0/0",ip_protocol="tcp")
     reservation = self.conn.run_instances('ami-8393d6b3', instance_type="t1.micro", key_name=tmpnam,security_groups=[tmpnam])
     instance = reservation.instances[0]
     print('Waiting for instance to start...')

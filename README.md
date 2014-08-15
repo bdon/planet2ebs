@@ -23,9 +23,6 @@ Build artifact:
 ebs://
 
 
-# use the Main cluster instead, changing postgresql.conf
-
-
 ["i2.xlarge",{'/mnt/xvdf','}]
 import on instancestore
 otherwise need 2 ebs volumes

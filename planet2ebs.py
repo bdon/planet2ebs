@@ -32,10 +32,15 @@ USAGE = """usage: planet2ebs.py url
     -> Created ebs://vol-777 (pbf)
     -> Created ebs://vol-888 (pgdata)
 
-  planet2ebs.py run ebs://vol-888
+  planet2ebs.py start ebs://vol-888
     Starts the PostgreSQL database.
     Example output:
     -> Started postgres://render:password@111.111.111.111/osm"
+
+    You are responsible for terminating this instance.
+    Options:
+      Launch with another private key
+      Specify a password
 """
 
 try:
@@ -44,6 +49,39 @@ try:
 except KeyError:
    print "Please set the environment variables AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY"
    sys.exit(1)
+
+def doStart(conn, args):
+  print "Starting database from volume"
+
+  pgdata_url = args[1]
+  pgdata = objects.PbfSource(pgdata_url)
+  try:
+    vol = conn.get_all_volumes([pgdata.netloc])[0]
+    if vol.update() != "available":
+       print "Pgdata volume unavailable."
+       sys.exit(1)
+  except:
+    print "Pgdata volume missing."
+    sys.exit(1)
+
+  timestamp = int(time.time())
+  fabric.api.env.key_filename = "planet2ebs-{0}.pem".format(timestamp)
+  fabric.api.env.connection_attempts = 10
+
+  i = objects.Instance(conn,timestamp).__enter__()
+  fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
+  cm = objects.PbfSourceEbsCm(pgdata,conn,fabric.api,i.id,"pgdata")
+  # should auto-mount on startup
+  mountpoint = cm.__enter__()
+  fabric.api.put("pg_config/pg_hba.conf","/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
+  fabric.api.put("pg_config/postgresql.conf","/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
+  fabric.api.put("pg_config/start_auto.conf","/etc/postgresql/9.3/main/start.conf",use_sudo=True) # Why?
+  fabric.api.sudo("chown -R postgres:postgres /mnt/pgdata")
+  fabric.api.sudo("service postgresql start")
+  fabric.api.run("psql -U postgres -c \"CREATE USER render WITH PASSWORD 'default_password'\"",warn_only=True)
+  fabric.api.run("psql -U postgres -c \"ALTER USER render PASSWORD 'default_password'\"",warn_only=True)
+  fabric.api.run("psql -U postgres osm -c \"GRANT SELECT ON ALL TABLES IN SCHEMA public TO render\"",warn_only=True)
+  print "Connect like this my friend: psql -U render -h {0} osm".format(i.public_dns_name)
 
 def doImport(conn, args):
   pbf_url = args[1]
@@ -111,7 +149,7 @@ if __name__ == '__main__':
     doImport(conn, args)
 
   elif operation == "start":
-    pass
+    doStart(conn, args)
 
   else:
     parser.print_help()
