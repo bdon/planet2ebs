@@ -51,11 +51,11 @@ except KeyError:
    sys.exit(1)
 
 def doLs(conn):
-  print "id\t\tcreated\t\t\t\ttype\tsource"
+  print "id\t\tstate\t\tcreated\t\t\t\ttype\tsource"
   for v in conn.get_all_volumes(filters={'tag-key':'planet2ebs'}):
-    print v.id + "\t" + v.create_time + "\t" + v.tags['planet2ebs'] + "\t" + v.tags['planet2ebs-source']
+    print v.id + "\t" + v.update() + "\t" + v.create_time + "\t" + v.tags['planet2ebs'] + "\t" + v.tags['planet2ebs-source']
   for i in conn.get_all_instances(filters={'tag-key':'planet2ebs'}):
-    print i.id + "\t" + v.create_time + "\t" + v.tags['planet2ebs'] + "\t" + v.tags['planet2ebs-source']
+    print i.id + "\t" + i.update() + "\t" + i.create_time + "\t" + i.tags['planet2ebs'] + "\t" + i.tags['planet2ebs-source']
 
 def doStart(conn, args):
   print "Starting database from volume"
