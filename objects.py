@@ -8,7 +8,6 @@ def waitForState(obj, s):
   while status != s:
     time.sleep(10)
     status = obj.update()
-  print "{0} is {1}".format(obj, s)
   return
 
 class PbfSourceHttpCm(object):
@@ -85,9 +84,10 @@ class PbfSource(object):
 # Untested below this.
 
 class Instance:
-  def __init__(self,conn,timestamp):
+  def __init__(self,conn,timestamp,tags={}):
     self.timestamp = timestamp
     self.conn = conn
+    self.tags= tags
 
   def __enter__(self):
     print("Preparing ec2 instance...")
@@ -101,6 +101,8 @@ class Instance:
     instance = reservation.instances[0]
     print('Waiting for instance to start...')
     waitForState(instance, 'running')
+    for k,v in self.tags.iteritems():
+      instance.add_tag(k,v)
     self.instance = instance
     return instance
 
@@ -122,18 +124,19 @@ class EbsArtifact(object):
 
 # one or more of these created each run.
 class NewArtifact(object):
-  def __init__(self, conn, instance, fab, name):
+  def __init__(self, conn, instance, fab, name,tags={}):
     self.instance = instance
     self.fab = fab
     self.conn = conn
     self.mountpoint = "/mnt/" + name
+    self.tags = tags
 
   def __enter__(self):
     self.vol = self.conn.create_volume(30, self.instance.placement)
     waitForState(self.vol, 'available')
     self.vol.attach(self.instance.id, '/dev/sdg')
-    #self.vol.add_tag("planet2ebs","pbf")
-    #self.vol.add_tag("planet2ebs-source",uri)
+    for k,v in self.tags.iteritems():
+      self.vol.add_tag(k,v)
     waitForState(self.vol, 'in-use')
     time.sleep(10) # Why???
     self.fab.sudo("mkfs -t ext4 /dev/xvdg > /dev/null")

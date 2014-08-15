@@ -54,8 +54,8 @@ def doLs(conn):
   print "id\t\tstate\t\tcreated\t\t\t\ttype\tsource"
   for v in conn.get_all_volumes(filters={'tag-key':'planet2ebs'}):
     print v.id + "\t" + v.update() + "\t" + v.create_time + "\t" + v.tags['planet2ebs'] + "\t" + v.tags['planet2ebs-source']
-  for i in conn.get_all_instances(filters={'tag-key':'planet2ebs'}):
-    print i.id + "\t" + i.update() + "\t" + i.create_time + "\t" + i.tags['planet2ebs'] + "\t" + i.tags['planet2ebs-source']
+  for i in conn.get_only_instances(filters={'tag-key':'planet2ebs'}):
+    print i.id + "\t" + i.update() + "\t" + i.launch_time + "\t" + i.tags['planet2ebs'] + "\t" + i.tags['planet2ebs-source']
 
 def doStart(conn, args):
   print "Starting database from volume"
@@ -75,7 +75,7 @@ def doStart(conn, args):
   fabric.api.env.key_filename = "planet2ebs-{0}.pem".format(timestamp)
   fabric.api.env.connection_attempts = 10
 
-  i = objects.Instance(conn,timestamp).__enter__()
+  i = objects.Instance(conn,timestamp,{'planet2ebs':'db','planet2ebs-source':pgdata_url}).__enter__()
   fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
   cm = objects.PbfSourceEbsCm(pgdata,conn,fabric.api,i.id,"pgdata")
   # should auto-mount on startup
@@ -106,7 +106,7 @@ def doImport(conn, args):
     print "No mapping; Copying file to EBS volume..."
     with objects.Instance(conn, timestamp) as i:
       fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
-      with objects.NewArtifact(conn, i, fabric.api,"artifact") as artifact:
+      with objects.NewArtifact(conn, i, fabric.api,"artifact",{'planet2ebs':'pbf','planet2ebs-source':pbf_url}) as artifact:
         with pbfsource.use(conn, fabric.api, i.id) as path:
           fabric.api.run("cp {0} {1}".format(path, artifact.mountpoint))
         print "Output: " + artifact.output()
@@ -119,7 +119,7 @@ def doImport(conn, args):
 
     with objects.Instance(conn, timestamp) as i:
       fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
-      with objects.NewArtifact(conn, i, fabric.api,"pgdata") as artifact:
+      with objects.NewArtifact(conn, i, fabric.api,"pgdata",{'planet2ebs':'pgdata','planet2ebs-source':pbf_url}) as artifact:
         with pbfsource.use(conn, fabric.api, i.id) as path:
           fabric.api.put("pg_config/pg_hba.conf","/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
           fabric.api.put("pg_config/postgresql.conf","/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
