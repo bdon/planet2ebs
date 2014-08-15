@@ -23,6 +23,16 @@ The environment variables `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are re
 * Output: `-> Started postgres://render:password@1-2-3-4.ec2.amazonaws.com/osm`
 * Terminating this instance is left up to you.
 
+`planet2ebs.py ls`
+
+* Lists volumes and instances created by `planet2ebs`, and their source data.
+
+        vol-123123 pbf       http://example.com/something/osm.pbf
+        vol-234234 pgdata    vol-123123
+        i-345345   db        vol-234234
+ 
+
+
 ## Development
 
 `ami/` - builds the AMI used for these operations
