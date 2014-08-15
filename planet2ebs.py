@@ -50,6 +50,13 @@ except KeyError:
    print "Please set the environment variables AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY"
    sys.exit(1)
 
+def doLs(conn):
+  print "id\t\tcreated\t\t\t\ttype\tsource"
+  for v in conn.get_all_volumes(filters={'tag-key':'planet2ebs'}):
+    print v.id + "\t" + v.create_time + "\t" + v.tags['planet2ebs'] + "\t" + v.tags['planet2ebs-source']
+  for i in conn.get_all_instances(filters={'tag-key':'planet2ebs'}):
+    print i.id + "\t" + v.create_time + "\t" + v.tags['planet2ebs'] + "\t" + v.tags['planet2ebs-source']
+
 def doStart(conn, args):
   print "Starting database from volume"
 
@@ -150,6 +157,9 @@ if __name__ == '__main__':
 
   elif operation == "start":
     doStart(conn, args)
+
+  elif operation == "ls":
+    doLs(conn)
 
   else:
     parser.print_help()
