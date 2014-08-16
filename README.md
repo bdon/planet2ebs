@@ -15,7 +15,12 @@ Creates an EBS volume containing the specified OSM .PBF file.
 
     $ planet2ebs copy http://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf
 	...
-     -> Created vol-111111
+     -> Created vol-111111 (pbf, 25 GB)
+     
+* For the planet: [planet.openstreetmap.org/pbf](http://planet.openstreetmap.org/pbf/)
+* For country-level extracts: [Geofabrik Downloads](http://www.geofabrik.de/data/download.html)
+* For metro-level extracts: [Mapzen Metro Extracts](https://mapzen.com/metro-extracts/)
+
 ### Import
 Creates a rendering database on an EBS volume from the .PBF stored on the given volume.
 
@@ -23,7 +28,7 @@ By default, uses the [imposm3]() mapping [example-mapping.json]().
 
     $ planet2ebs import vol-111111
     ...
-    -> Created vol-222222
+    -> Created vol-222222 (pgdata, 180 GB)
 
 * To use a custom mapping: `planet2ebs import -mapping=mapping.json vol-111111`
 
@@ -42,10 +47,10 @@ Starts an EC2 instance using the given data volume, and creates a read-only rend
 Lists volumes and instances created by `planet2ebs` and how they were created.
 
 	$ planet2ebs ls
-	id			type	  source
-    vol-111111  pbf       http://example.com/something/osm.pbf
-    vol-222222  pgdata    vol-111111
-    i-333333    db        vol-222222
+	id			type	size		source
+    vol-111111  pbf     25 GB  		http://example.com/something/osm.pbf
+    vol-222222  pgdata  180 GB 		vol-111111
+    i-333333    db      r3.large	vol-222222
 
 ### Global Options
   

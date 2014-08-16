@@ -17,8 +17,7 @@ class PbfSourceHttpCm(object):
     self.fab = fab
 
   def __enter__(self):
-    self.fab.run("curl -s -o /home/ubuntu/osm.pbf {0}".format(self.source.url))
-    return "/home/ubuntu/osm.pbf"
+    return self.source.url
 
   def __exit__(self,type,value,traceback):
     pass
@@ -35,6 +34,7 @@ class PbfSourceEbsCm(object):
   def __enter__(self):
     self.vol = self.conn.get_all_volumes([self.source.netloc])[0]
     self.vol.attach(self.instance_id, "/dev/sdh")
+    print "Attaching volume"
     waitForState(self.vol, 'in-use')
     self.fab.sudo("mkdir -p /mnt/" + self.mountname)
     time.sleep(10) # Why???

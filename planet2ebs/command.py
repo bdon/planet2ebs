@@ -60,6 +60,12 @@ AMI_MAPPING = {
 }
 print "Defaulting to region us-west-2"
 
+# If all you are doing is Copy you don't need much
+
+COPY_CONFIGS = {
+  1:{'instance_type':'t1.micro','hourly_cost':0.020}
+}
+
 # 4 levels of import performance
 # level 1 - database < 4 gb, for small extracts and testing
 # level 2,3 - suitable for small countries
@@ -145,7 +151,8 @@ def doCopy(conn, args):
     fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
     with objects.NewArtifact(conn, i, fabric.api,size,"artifact",{'planet2ebs':'pbf','planet2ebs-source':pbf_url}) as artifact:
       with pbfsource.use(conn, fabric.api, i.id) as path:
-        fabric.api.run("cp {0} {1}".format(path, artifact.mountpoint))
+        # TODO check the md5
+        fabric.api.run("curl -s -o {0}/osm.pbf {1}".format(artifact.mountpoint,pbf_url))
       print "Output: " + artifact.output()
     disconnect_all()
 
