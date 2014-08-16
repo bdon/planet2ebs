@@ -124,6 +124,7 @@ class EbsArtifact(object):
     return self.vol_id
 
 # one or more of these created each run.
+# TODO create a gp2 instance always!
 class NewArtifact(object):
   def __init__(self, conn, instance, fab, size,name,tags={}):
     self.instance = instance

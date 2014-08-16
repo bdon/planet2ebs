@@ -1,7 +1,7 @@
 {
   "variables": {
-    "aws_access_key": "",
-    "aws_secret_key": ""
+    "aws_access_key": "{{env `AWS_ACCESS_KEY_ID`}}",
+    "aws_secret_key": "{{env `AWS_SECRET_ACCESS_KEY`}}"
   },
   "builders": [
     {
@@ -12,7 +12,9 @@
       "source_ami": "ami-8bb8c0bb",
       "instance_type": "t1.micro",
       "ssh_username": "ubuntu",
-      "ami_name": "planet2ebs {{timestamp}}"
+      "ami_name": "planet2ebs {{timestamp}}",
+      "ami_regions":["us-east-1","us-west-1","us-west-2"],
+      "ami_groups":["all"]
     }
   ],
   "provisioners": [

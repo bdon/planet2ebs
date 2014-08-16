@@ -53,6 +53,34 @@ except KeyError:
    print "Please set the environment variables AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY"
    sys.exit(1)
 
+AMI_MAPPING = {
+ 'us-west-1':'ami-1f7c705a',
+ 'us-west-2':'ami-4fbffa7f',
+ 'us-east-1':'ami-06b4686e'
+}
+print "Defaulting to region us-west-2"
+
+# 4 levels of import performance
+# level 1 - database < 4 gb, for small extracts and testing
+# level 2,3 - suitable for small countries
+# level 4 - you need to use this for planet imports
+
+IMPORT_CONFIGS = {
+  1:{'instance_type':'m3.medium','disk_size':4  ,'hourly_cost':0.070},
+  2:{'instance_type':'r3.large' ,'disk_size':32 ,'hourly_cost':0.175},
+  3:{'instance_type':'r3.xlarge','disk_size':80 ,'hourly_cost':0.350},
+  4:{'instance_type':'i2.xlarge','disk_size':800,'hourly_cost':0.853}
+}
+
+# 3 levels of database performance
+# depends on how much memory you want.
+
+START_CONFIGS = {
+  1:{'instance_type':'m3.medium','memory':3.75,'hourly_cost':0.070},
+  2:{'instance_type':'r3.large' ,'memory':15  ,'hourly_cost':0.175},
+  3:{'instance_type':'r3.xlarge','memory':30.5,'hourly_cost':0.350},
+}
+
 def doLs(conn):
   print "id\t\tstate\t\tcreated\t\t\t\tsize\ttype\tsource"
   for v in conn.get_all_volumes(filters={'tag-key':'planet2ebs'}):
@@ -81,7 +109,7 @@ def doStart(conn, args):
   i = objects.Instance(conn,timestamp,{'planet2ebs':'db','planet2ebs-source':pgdata_url}).__enter__()
   fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
   cm = objects.PbfSourceEbsCm(pgdata,conn,fabric.api,i.id,"pgdata")
-  # should auto-mount on startup
+  # TODO: should auto-mount on startup, edit fstab
   mountpoint = cm.__enter__()
 
   pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
@@ -137,9 +165,13 @@ def doImport(conn, args):
   fabric.api.env.key_filename = "planet2ebs-{0}.pem".format(timestamp)
   fabric.api.env.connection_attempts = 10
 
-  mapping = args[2]
-  print "Using mapping {0}".format(mapping)
-  json.loads(open(mapping).read()) #sanity check
+  if len(args) > 2:
+    print "Using mapping {0}".format(args[2])
+    contents = open(args[2]).read()
+    json.loads(contents) #sanity check
+  else:
+    print "Using default mapping"
+    contents = resource_string(__name__, 'default_mapping.json')
 
   with objects.Instance(conn, timestamp) as i:
     fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
@@ -150,7 +182,7 @@ def doImport(conn, args):
         fabric.api.put(pg_hba,"/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
         fabric.api.put(pg_conf,"/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
         fabric.api.sudo("echo 'auto' > /etc/postgresql/9.3/main/start.conf")
-        fabric.api.put(mapping,"mapping.json")
+        fabric.api.put(StringIO.StringIO(contents),"mapping.json")
         fabric.api.sudo("mv /var/lib/postgresql/9.3/main {0}".format(artifact.mountpoint))
         fabric.api.sudo("service postgresql start")
         fabric.api.sudo("su postgres -c 'createuser -s importer'")
