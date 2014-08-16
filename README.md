@@ -1,6 +1,8 @@
 ## Installation
 
-`pip install planet2ebs` (may need `sudo`)
+`pip install planet2ebs` 
+
+(may need `sudo`)
 
 ## Usage
 
@@ -39,11 +41,11 @@ Starts an EC2 instance using the given data volume, and creates a read-only rend
 ### List
 Lists volumes and instances created by `planet2ebs` and how they were created.
 
-		$ planet2ebs ls
-		id			type	  source
-        vol-111111  pbf       http://example.com/something/osm.pbf
-        vol-222222  pgdata    vol-111111
-        i-333333    db        vol-222222
+	$ planet2ebs ls
+	id			type	  source
+    vol-111111  pbf       http://example.com/something/osm.pbf
+    vol-222222  pgdata    vol-111111
+    i-333333    db        vol-222222
 
 ### Global Options
   
