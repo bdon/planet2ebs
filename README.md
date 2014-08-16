@@ -6,7 +6,7 @@
 
 The environment variables `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are required.
 
-`planet2ebs.py import http://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf`
+`planet2ebs.py copy http://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf`
 
 * Creates an EBS volume containing the specified OSM .PBF file.
 * Output: `-> Created ebs://vol-999 (pbf)`

@@ -2,13 +2,13 @@ from urlparse import urlparse
 import requests
 import os, shutil
 import time
+import math
 
 def waitForState(obj, s):
   status = obj.update()
   while status != s:
     time.sleep(10)
     status = obj.update()
-    print status
   return
 
 class PbfSourceHttpCm(object):
@@ -67,20 +67,20 @@ class PbfSource(object):
   def artifacts(self):
     pass
 
-  def sanitycheck(self,conn):
+  def size(self,conn):
     if self.scheme == 'http':
       resp = requests.head(self.url)
       if resp.status_code == 200:
-        return True
+        size_bytes = int(resp.headers['content-length'])
+        return int(math.ceil(size_bytes / 1000.0 / 1000.0 / 1000.0))
+      else:
+        raise Exception("File does not exist")
     if self.scheme ==  'ebs':
-      try:
-        vol = conn.get_all_volumes([self.netloc])[0]
-        if vol.update() == "available":
-          return True
-      except:
-        return False
-    return False
-    #print "PBF file has size {0} bytes.".format(resp.headers['content-length'])
+      vol = conn.get_all_volumes([self.netloc])[0]
+      if vol.update() == "available":
+        return vol.size
+      else:
+        raise Exception("Volume is not available.")
 
 # Untested below this.
 
@@ -125,15 +125,16 @@ class EbsArtifact(object):
 
 # one or more of these created each run.
 class NewArtifact(object):
-  def __init__(self, conn, instance, fab, name,tags={}):
+  def __init__(self, conn, instance, fab, size,name,tags={}):
     self.instance = instance
     self.fab = fab
     self.conn = conn
     self.mountpoint = "/mnt/" + name
     self.tags = tags
+    self.size = size
 
   def __enter__(self):
-    self.vol = self.conn.create_volume(30, self.instance.placement)
+    self.vol = self.conn.create_volume(self.size, self.instance.placement)
     waitForState(self.vol, 'available')
     self.vol.attach(self.instance.id, '/dev/sdg')
     for k,v in self.tags.iteritems():
