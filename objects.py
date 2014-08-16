@@ -8,6 +8,7 @@ def waitForState(obj, s):
   while status != s:
     time.sleep(10)
     status = obj.update()
+    print status
   return
 
 class PbfSourceHttpCm(object):
