@@ -11,28 +11,31 @@ from fabric.network import disconnect_all
 
 import objects
 
+from pkg_resources import resource_string
+import StringIO
+
 USAGE = """usage: planet2ebs.py url
   Simple tool to create EBS volumes containing OpenStreetMap rendering databases.
   Always creates one or more EBS volumes.
 
-  planet2ebs.py copy http://www.example.com/osm.pbf
+  planet2ebs copy http://www.example.com/osm.pbf
     creates an EBS volume containing this data.
     Defaults to writing "osm.pbf" at the root of the volume.
     Example output:
     -> Created ebs://vol-999 (pbf)
 
-  planet2ebs.py import ebs://vol-999 mapping.json
+  planet2ebs import ebs://vol-999 mapping.json
     Creates a PostgreSQL database on an EBS volume, from the given EBS volume (assumes /osm.pbf)
     Example output:
     -> Created ebs://vol-888 (pgdata)
 
-  planet2ebs.py import http://example.com/osm.pbf mapping.json
+  planet2ebs import http://example.com/osm.pbf mapping.json
     Creates a PostgreSQL database from a PBF file, also caching the PBF file in an EBS volume.
     Example output:
     -> Created ebs://vol-777 (pbf)
     -> Created ebs://vol-888 (pgdata)
 
-  planet2ebs.py start ebs://vol-888
+  planet2ebs start ebs://vol-888
     Starts the PostgreSQL database.
     Example output:
     -> Started postgres://render:password@111.111.111.111/osm"
@@ -80,9 +83,12 @@ def doStart(conn, args):
   cm = objects.PbfSourceEbsCm(pgdata,conn,fabric.api,i.id,"pgdata")
   # should auto-mount on startup
   mountpoint = cm.__enter__()
-  fabric.api.put("pg_config/pg_hba.conf","/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
-  fabric.api.put("pg_config/postgresql.conf","/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
-  fabric.api.put("pg_config/start_auto.conf","/etc/postgresql/9.3/main/start.conf",use_sudo=True) # Why?
+
+  pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
+  pg_conf = StringIO.StringIO(resource_string(__name__, 'pg_config/postgresql.conf'))
+  fabric.api.put(pg_hba,"/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
+  fabric.api.put(pg_conf,"/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
+  fabric.api.sudo("echo 'auto' > /etc/postgresql/9.3/main/start.conf")
   fabric.api.sudo("chown -R postgres:postgres /mnt/pgdata")
   fabric.api.sudo("service postgresql start")
   fabric.api.run("psql -U postgres -c \"CREATE USER render WITH PASSWORD 'default_password'\"",warn_only=True)
@@ -139,9 +145,11 @@ def doImport(conn, args):
     fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
     with objects.NewArtifact(conn, i, fabric.api,size*5,"pgdata",{'planet2ebs':'pgdata','planet2ebs-source':pbf_url}) as artifact:
       with pbfsource.use(conn, fabric.api, i.id) as path:
-        fabric.api.put("pg_config/pg_hba.conf","/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
-        fabric.api.put("pg_config/postgresql.conf","/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
-        fabric.api.put("pg_config/start_auto.conf","/etc/postgresql/9.3/main/start.conf",use_sudo=True) # Why?
+        pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
+        pg_conf = StringIO.StringIO(resource_string(__name__, 'pg_config/postgresql.conf'))
+        fabric.api.put(pg_hba,"/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
+        fabric.api.put(pg_conf,"/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
+        fabric.api.sudo("echo 'auto' > /etc/postgresql/9.3/main/start.conf")
         fabric.api.put(mapping,"mapping.json")
         fabric.api.sudo("mv /var/lib/postgresql/9.3/main {0}".format(artifact.mountpoint))
         fabric.api.sudo("service postgresql start")
