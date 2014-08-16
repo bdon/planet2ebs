@@ -1,0 +1,3 @@
+import command
+
+command.run()

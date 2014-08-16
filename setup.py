@@ -6,8 +6,14 @@ setup(name='planet2ebs',
       author='Brandon Liu',
       author_email='bdon@bdon.org',
       url='http://github.com/bdon/planet2ebs',
-      install_requires=['boto','fabric','requests'],
-      packages=[],
-      scripts=['planet2ebs.py'],
-      data_files=[('share/planet2ebs', [''])],
-      license='MIT')
+      install_requires=['boto<3','fabric<2','requests<3'],
+      packages=['planet2ebs'],
+      package_data={
+        'planet2ebs': ['example-mapping.json'],
+      },
+      license='MIT',
+      entry_points={
+        'console_scripts': [
+            'planet2ebs=planet2ebs:main',
+        ],
+      })

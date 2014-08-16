@@ -156,7 +156,7 @@ def doImport(conn, args):
       print "Output: " + artifact.output()
     disconnect_all()
 
-if __name__ == '__main__':
+def run():
   parser = optparse.OptionParser(USAGE)
   (options, args) = parser.parse_args()
   if len(args) == 0:
