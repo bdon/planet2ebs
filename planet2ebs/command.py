@@ -13,6 +13,7 @@ import objects
 
 from pkg_resources import resource_string
 import StringIO
+import math
 
 USAGE = """usage: planet2ebs.py url
   Simple tool to create EBS volumes containing OpenStreetMap rendering databases.
@@ -70,6 +71,7 @@ COPY_CONFIGS = {
 # level 1 - database < 4 gb, for small extracts and testing
 # level 2,3 - suitable for small countries
 # level 4 - you need to use this for planet imports
+# All imports require an instancestore.
 
 IMPORT_CONFIGS = {
   1:{'instance_type':'m3.medium','disk_size':4  ,'hourly_cost':0.070},
@@ -119,8 +121,10 @@ def doStart(conn, args):
   mountpoint = cm.__enter__()
 
   pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
-  pg_conf = StringIO.StringIO(resource_string(__name__, 'pg_config/postgresql.conf'))
   fabric.api.put(pg_hba,"/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
+
+  pg_conf_template = resource_string(__name__, 'pg_config/postgresql.conf.template')
+  pg_conf = StringIO.StringIO(pg_conf_template.format("/mnt/pgdata/main"))
   fabric.api.put(pg_conf,"/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
   fabric.api.sudo("echo 'auto' > /etc/postgresql/9.3/main/start.conf")
   fabric.api.sudo("chown -R postgres:postgres /mnt/pgdata")
@@ -152,7 +156,7 @@ def doCopy(conn, args):
     with objects.NewArtifact(conn, i, fabric.api,size,"artifact",{'planet2ebs':'pbf','planet2ebs-source':pbf_url}) as artifact:
       with pbfsource.use(conn, fabric.api, i.id) as path:
         # TODO check the md5
-        fabric.api.run("curl -s -o {0}/osm.pbf {1}".format(artifact.mountpoint,pbf_url))
+        fabric.api.run("curl -o {0}/osm.pbf {1}".format(artifact.mountpoint,pbf_url))
       print "Output: " + artifact.output()
     disconnect_all()
 
@@ -182,24 +186,31 @@ def doImport(conn, args):
 
   with objects.Instance(conn, timestamp) as i:
     fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
-    with objects.NewArtifact(conn, i, fabric.api,size*5,"pgdata",{'planet2ebs':'pgdata','planet2ebs-source':pbf_url}) as artifact:
-      with pbfsource.use(conn, fabric.api, i.id) as path:
-        pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
-        pg_conf = StringIO.StringIO(resource_string(__name__, 'pg_config/postgresql.conf'))
-        fabric.api.put(pg_hba,"/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
+    with pbfsource.use(conn, fabric.api, i.id) as path:
+      pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
+      pg_conf_template = resource_string(__name__, 'pg_config/postgresql.conf.template')
+      fabric.api.put(pg_hba,"/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
+      pg_conf = StringIO.StringIO(pg_conf_template.format("/mnt/main"))
+      fabric.api.put(pg_conf,"/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
+      fabric.api.sudo("echo 'auto' > /etc/postgresql/9.3/main/start.conf")
+      fabric.api.put(StringIO.StringIO(contents),"mapping.json")
+      fabric.api.sudo("mv /var/lib/postgresql/9.3/main /mnt/")
+      fabric.api.sudo("service postgresql start")
+      fabric.api.sudo("su postgres -c 'createuser -s importer'")
+      fabric.api.sudo("su postgres -c 'createdb osm -O importer'")
+      fabric.api.run("psql osm -U importer -c 'CREATE EXTENSION postgis;'")
+      fabric.api.run("imposm3 import -mapping={0} -read {1} -connection={2} -write -deployproduction -optimize".format(
+        "mapping.json",
+        path,
+        "postgis:///osm?host=/var/run/postgresql\&user=importer"))
+      fabric.api.sudo("service postgresql stop")
+      db_size_bytes = fabric.api.sudo("du -s /mnt/main | awk '{print $1}'").stdout
+      db_size_gb = int(math.ceil(int(db_size_bytes) / 1000.0 / 1000.0 / 1000.0))
+      print "Database is {0} GB".format(db_size_gb)
+      with objects.NewArtifact(conn, i, fabric.api,db_size_gb,"pgdata",{'planet2ebs':'pgdata','planet2ebs-source':pbf_url}) as artifact:
+        fabric.api.sudo("mv /mnt/main {0}".format(artifact.mountpoint))
+        pg_conf = StringIO.StringIO(pg_conf_template.format("/mnt/pgdata/main"))
         fabric.api.put(pg_conf,"/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
-        fabric.api.sudo("echo 'auto' > /etc/postgresql/9.3/main/start.conf")
-        fabric.api.put(StringIO.StringIO(contents),"mapping.json")
-        fabric.api.sudo("mv /var/lib/postgresql/9.3/main {0}".format(artifact.mountpoint))
-        fabric.api.sudo("service postgresql start")
-        fabric.api.sudo("su postgres -c 'createuser -s importer'")
-        fabric.api.sudo("su postgres -c 'createdb osm -O importer'")
-        fabric.api.run("psql osm -U importer -c 'CREATE EXTENSION postgis;'")
-        fabric.api.run("imposm3 import -mapping={0} -read {1} -connection={2} -write -deployproduction -optimize".format(
-          "mapping.json",
-          path,
-          "postgis:///osm?host=/var/run/postgresql\&user=importer")) #this fucking kills me
-        fabric.api.sudo("service postgresql stop")
       print "Output: " + artifact.output()
     disconnect_all()
 

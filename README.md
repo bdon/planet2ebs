@@ -24,13 +24,17 @@ Creates an EBS volume containing the specified OSM .PBF file.
 ### Import
 Creates a rendering database on an EBS volume from the .PBF stored on the given volume.
 
-By default, uses the [imposm3]() mapping [example-mapping.json]().
+By default, uses the [imposm3](https://github.com/omniscale/imposm3) mapping [example-mapping.json](https://github.com/omniscale/imposm3/blob/master/example-mapping.json).
 
     $ planet2ebs import vol-111111
     ...
     -> Created vol-222222 (pgdata, 180 GB)
 
 * To use a custom mapping: `planet2ebs import -mapping=mapping.json vol-111111`
+* `-instance-type=X`: Costlier instances will have more memory and CPU to speed up the import. The generated database must fit on the instance's ephemeral storage. Possible values:
+	* `m3.medium`: (default) appropriate only for testing and small extracts. 
+	* `r3.large`,`r3.xlarge`: are sufficient for cities and countries.
+	* `i2.xlarge`: is necessary for the entire OSM planet file.
 
 
 ### Start
@@ -42,6 +46,7 @@ Starts an EC2 instance using the given data volume, and creates a read-only rend
 
 * To set the `render` user password: `planet2ebs start -password=PASSWORD vol-222222`
 * This instance must be terminated manually. It can be rebooted without problems.
+* `-instance-type=X`: possible values `m3.medium`, `r3.large`, `r3.xlarge`
 
 ### List
 Lists volumes and instances created by `planet2ebs` and how they were created.

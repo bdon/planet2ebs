@@ -4,10 +4,13 @@ import os, shutil
 import time
 import math
 
+from boto.ec2.blockdevicemapping import BlockDeviceType, BlockDeviceMapping
+
+# TODO: should be tolerant of 1 or 2 failures
 def waitForState(obj, s):
   status = obj.update()
   while status != s:
-    time.sleep(10)
+    time.sleep(5)
     status = obj.update()
   return
 
@@ -59,7 +62,7 @@ class PbfSource(object):
 
   # returns a context manager to prepare/teardown the source.
   def use(self,conn,fab,instance_id):
-    if self.scheme == "http":
+    if self.scheme == "http" or self.scheme == 'https':
       return PbfSourceHttpCm(self,fab)
     elif self.scheme == "ebs":
       return PbfSourceEbsCm(self,conn,fab,instance_id,"pbfsource")
@@ -68,10 +71,15 @@ class PbfSource(object):
     pass
 
   def size(self,conn):
-    if self.scheme == 'http':
+    if self.scheme == 'http' or self.scheme == 'https':
       resp = requests.head(self.url)
       if resp.status_code == 200:
-        size_bytes = int(resp.headers['content-length'])
+        if 'content-length' in resp.headers:
+          size_bytes = int(resp.headers['content-length'])
+        elif 'Content-Length' in resp.headers:
+          size_bytes = int(resp.headers['Content-Length'])
+        else:
+          raise Exception("File missing Content-Length header.")
         return int(math.ceil(size_bytes / 1000.0 / 1000.0 / 1000.0))
       else:
         raise Exception("File does not exist")
@@ -81,6 +89,7 @@ class PbfSource(object):
         return vol.size
       else:
         raise Exception("Volume is not available.")
+    raise Exception("Unknown Scheme")
 
 # Untested below this.
 
@@ -98,7 +107,13 @@ class Instance:
     self.sg = self.conn.create_security_group(tmpnam,"Temporary security group for planet2ebs")
     self.conn.authorize_security_group(group_name=tmpnam,from_port=22,to_port=22,cidr_ip="0.0.0.0/0",ip_protocol="tcp")
     self.conn.authorize_security_group(group_name=tmpnam,from_port=5432,to_port=5432,cidr_ip="0.0.0.0/0",ip_protocol="tcp")
-    reservation = self.conn.run_instances('ami-8393d6b3', instance_type="t1.micro", key_name=tmpnam,security_groups=[tmpnam])
+
+    xvdb = BlockDeviceType()
+    xvdb.ephemeral_name='ephemeral0'
+    bdm = BlockDeviceMapping()
+    bdm['/dev/xvdb'] = xvdb
+
+    reservation = self.conn.run_instances('ami-8393d6b3', placement='us-west-2b',instance_type="m3.medium", key_name=tmpnam,security_groups=[tmpnam],block_device_map=bdm)
     instance = reservation.instances[0]
     print('Waiting for instance to start...')
     waitForState(instance, 'running')
@@ -124,7 +139,6 @@ class EbsArtifact(object):
     return self.vol_id
 
 # one or more of these created each run.
-# TODO create a gp2 instance always!
 class NewArtifact(object):
   def __init__(self, conn, instance, fab, size,name,tags={}):
     self.instance = instance
@@ -135,7 +149,7 @@ class NewArtifact(object):
     self.size = size
 
   def __enter__(self):
-    self.vol = self.conn.create_volume(self.size, self.instance.placement)
+    self.vol = self.conn.create_volume(self.size, self.instance.placement,volume_type="gp2")
     waitForState(self.vol, 'available')
     self.vol.attach(self.instance.id, '/dev/sdg')
     for k,v in self.tags.iteritems():
