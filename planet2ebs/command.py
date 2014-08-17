@@ -55,9 +55,9 @@ except KeyError:
    sys.exit(1)
 
 AMI_MAPPING = {
- 'us-west-1':'ami-1f7c705a',
- 'us-west-2':'ami-4fbffa7f',
- 'us-east-1':'ami-06b4686e'
+ 'us-west-1':'ami-c7080482',
+ 'us-west-2':'ami-77d69347',
+ 'us-east-1':'ami-9e05d9f6'
 }
 print "Defaulting to region us-west-2"
 
@@ -74,19 +74,19 @@ COPY_CONFIGS = {
 # All imports require an instancestore.
 
 IMPORT_CONFIGS = {
-  1:{'instance_type':'m3.medium','disk_size':4  ,'hourly_cost':0.070},
-  2:{'instance_type':'r3.large' ,'disk_size':32 ,'hourly_cost':0.175},
-  3:{'instance_type':'r3.xlarge','disk_size':80 ,'hourly_cost':0.350},
-  4:{'instance_type':'i2.xlarge','disk_size':800,'hourly_cost':0.853}
+  'm3.medium':{'instance_type':'m3.medium','disk_size':4  ,'hourly_cost':0.070},
+  'r3.large':{'instance_type':'r3.large' ,'disk_size':32 ,'hourly_cost':0.175},
+  'r3.xlarge':{'instance_type':'r3.xlarge','disk_size':80 ,'hourly_cost':0.350},
+  'i2.xlarge':{'instance_type':'i2.xlarge','disk_size':800,'hourly_cost':0.853}
 }
 
 # 3 levels of database performance
 # depends on how much memory you want.
 
 START_CONFIGS = {
-  1:{'instance_type':'m3.medium','memory':3.75,'hourly_cost':0.070},
-  2:{'instance_type':'r3.large' ,'memory':15  ,'hourly_cost':0.175},
-  3:{'instance_type':'r3.xlarge','memory':30.5,'hourly_cost':0.350},
+  'm3.medium':{'instance_type':'m3.medium','memory':3.75,'hourly_cost':0.070},
+  'r3.large':{'instance_type':'r3.large' ,'memory':15  ,'hourly_cost':0.175},
+  'r3.xlarge':{'instance_type':'r3.xlarge','memory':30.5,'hourly_cost':0.350},
 }
 
 def doLs(conn):
@@ -160,7 +160,11 @@ def doCopy(conn, args):
       print "Output: " + artifact.output()
     disconnect_all()
 
-def doImport(conn, args):
+def doImport(conn, args, options):
+  if options.instance_type not in IMPORT_CONFIGS.keys():
+    print "{0} not in {2}".format(options.instance_type, IMPORT_CONFIGS.keys())
+    exit(1)
+
   pbf_url = args[1]
   print "PBF Source " + pbf_url
   pbfsource = objects.PbfSource(pbf_url)
@@ -184,7 +188,7 @@ def doImport(conn, args):
     print "Using default mapping"
     contents = resource_string(__name__, 'default_mapping.json')
 
-  with objects.Instance(conn, timestamp) as i:
+  with objects.Instance(conn, timestamp, instance_type=options.instance_type) as i:
     fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
     with pbfsource.use(conn, fabric.api, i.id) as path:
       pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
@@ -204,8 +208,8 @@ def doImport(conn, args):
         path,
         "postgis:///osm?host=/var/run/postgresql\&user=importer"))
       fabric.api.sudo("service postgresql stop")
-      db_size_bytes = fabric.api.sudo("du -s /mnt/main | awk '{print $1}'").stdout
-      db_size_gb = int(math.ceil(int(db_size_bytes) / 1000.0 / 1000.0 / 1000.0))
+      db_size_raw = fabric.api.sudo("du -s --block-size 1G /mnt/main | awk '{print $1}'").stdout
+      db_size_gb = int(db_size_raw)
       print "Database is {0} GB".format(db_size_gb)
       with objects.NewArtifact(conn, i, fabric.api,db_size_gb,"pgdata",{'planet2ebs':'pgdata','planet2ebs-source':pbf_url}) as artifact:
         fabric.api.sudo("mv /mnt/main {0}".format(artifact.mountpoint))
@@ -216,7 +220,11 @@ def doImport(conn, args):
 
 def run():
   parser = optparse.OptionParser(USAGE)
+  parser.add_option("-i","--instance-type",
+                  action="store", dest="instance_type", default="m3.medium",
+                  help="Size of instance to use. Valid values for Import: m3.medium, r3.large, r3.xlarge, i2.xlarge.")
   (options, args) = parser.parse_args()
+  print options
   if len(args) == 0:
     parser.print_help()
     sys.exit(1)
@@ -231,7 +239,7 @@ def run():
   if operation == "copy":
     doCopy(conn, args)
   elif operation == "import":
-    doImport(conn, args)
+    doImport(conn, args, options)
   elif operation == "start":
     doStart(conn, args)
   elif operation == "ls":

@@ -94,10 +94,11 @@ class PbfSource(object):
 # Untested below this.
 
 class Instance:
-  def __init__(self,conn,timestamp,tags={}):
+  def __init__(self,conn,timestamp,instance_type='m3.medium',tags={}):
     self.timestamp = timestamp
     self.conn = conn
     self.tags= tags
+    self.instance_type = instance_type
 
   def __enter__(self):
     print("Preparing ec2 instance...")
@@ -113,7 +114,11 @@ class Instance:
     bdm = BlockDeviceMapping()
     bdm['/dev/xvdb'] = xvdb
 
-    reservation = self.conn.run_instances('ami-8393d6b3', placement='us-west-2b',instance_type="m3.medium", key_name=tmpnam,security_groups=[tmpnam],block_device_map=bdm)
+    reservation = self.conn.run_instances('ami-77d69347',
+      placement='us-west-2b',
+      instance_type=self.instance_type,
+      key_name=tmpnam,security_groups=[tmpnam],
+      block_device_map=bdm)
     instance = reservation.instances[0]
     print('Waiting for instance to start...')
     waitForState(instance, 'running')

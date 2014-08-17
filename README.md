@@ -2,8 +2,6 @@
 
 Command line tool for creating and running OpenStreetMap rendering databases on Amazon EC2. 
 
-Create a database accessible from anywhere in three steps:
-
     $ planet2ebs copy http://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf
     -> Created vol-111111 (pbf, 1 GB)
     $ planet2ebs import vol-111111
@@ -47,9 +45,9 @@ By default, uses the imposm3 mapping [example-mapping.json](https://github.com/o
 
 * To use a custom mapping: `planet2ebs import -mapping=mapping.json vol-111111`
 * `-instance-type=X`: Costlier instances will have more memory and CPU to speed up the import. The generated database must fit on the instance's ephemeral storage. Possible values:
-	* `m3.medium`: (default) appropriate only for testing and small extracts. 
-	* `r3.large`,`r3.xlarge`: are sufficient for cities and countries.
-	* `i2.xlarge`: is necessary for the entire OSM planet file.
+	* `m3.medium`: (default) appropriate only for testing and small extracts, max 4GB database.
+	* `r3.large`,`r3.xlarge`: are sufficient for cities and countries, max 32GB / 80GB database.
+	* `i2.xlarge`: is necessary for the entire OSM planet file, max 800GB database.
 
 
 ### Start
