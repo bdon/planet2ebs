@@ -1,17 +1,17 @@
 # planet2ebs
 
-Command line tool for creating and running OpenStreetMap rendering databases on EC2. 
+Command line tool for creating and running OpenStreetMap rendering databases on Amazon EC2. 
 
-Create a running database accessible from anywhere in three steps:
+Create a database accessible from anywhere in three steps:
 
     $ planet2ebs copy http://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf
     -> Created vol-111111 (pbf, 1 GB)
-    planet2ebs import vol-111111
+    $ planet2ebs import vol-111111
 	-> Created vol-222222 (pgdata, 4 GB)
-	planet2ebs start vol-222222
+	$ planet2ebs start vol-222222
 	-> Started postgres://render:password@3-3-3-3.ec2.amazonaws.com/osm`
 
-Uses [imposm3](https://github.com/omniscale/imposm3) and EC2 ephemeral storage for high performance. Since all data is persisted on EBS, databases can be shut down when they're not needed.
+Uses [imposm3](https://github.com/omniscale/imposm3) and ephemeral storage for high performance. Since all data is persisted on EBS, databases can be shut down when they're not needed.
 
 ## Installation
 
@@ -32,7 +32,7 @@ Creates an EBS volume containing the specified OSM .PBF file.
 	...
      -> Created vol-111111 (pbf, 25 GB)
      
-* For the planet: [planet.openstreetmap.org/pbf](http://planet.openstreetmap.org/pbf/)
+* For planet file: [planet.openstreetmap.org/pbf](http://planet.openstreetmap.org/pbf/)
 * For country-level extracts: [Geofabrik Downloads](http://www.geofabrik.de/data/download.html)
 * For metro-level extracts: [Mapzen Metro Extracts](https://mapzen.com/metro-extracts/)
 
@@ -61,7 +61,7 @@ Starts an EC2 instance using the given data volume, and creates a read-only rend
 
 * To set the `render` user password: `planet2ebs start -password=PASSWORD vol-222222`
 * This instance must be terminated manually. It can be rebooted without problems.
-* `-instance-type=X`: possible values `m3.medium`, `r3.large`, `r3.xlarge`
+* `-instance-type=X`: possible values `m3.medium` (default), `r3.large`, `r3.xlarge`
 
 ### List
 Lists volumes and instances created by `planet2ebs` and how they were created.
