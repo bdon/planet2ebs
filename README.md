@@ -1,8 +1,23 @@
+# planet2ebs
+
+Command line tool for creating and running OpenStreetMap rendering databases on EC2. 
+
+Create a running database accessible from anywhere in three steps:
+
+    $ planet2ebs copy http://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf
+    -> Created vol-111111 (pbf, 1 GB)
+    planet2ebs import vol-111111
+	-> Created vol-222222 (pgdata, 4 GB)
+	planet2ebs start vol-222222
+	-> Started postgres://render:password@3-3-3-3.ec2.amazonaws.com/osm`
+
+Uses [imposm3](https://github.com/omniscale/imposm3) and EC2 ephemeral storage for high performance. Since all data is persisted on EBS, databases can be shut down when they're not needed.
+
 ## Installation
 
 `pip install planet2ebs` 
 
-(may need `sudo`)
+ (may need `sudo`)
 
 ## Usage
 
@@ -24,7 +39,7 @@ Creates an EBS volume containing the specified OSM .PBF file.
 ### Import
 Creates a rendering database on an EBS volume from the .PBF stored on the given volume.
 
-By default, uses the [imposm3](https://github.com/omniscale/imposm3) mapping [example-mapping.json](https://github.com/omniscale/imposm3/blob/master/example-mapping.json).
+By default, uses the imposm3 mapping [example-mapping.json](https://github.com/omniscale/imposm3/blob/master/example-mapping.json).
 
     $ planet2ebs import vol-111111
     ...
@@ -66,6 +81,4 @@ Lists volumes and instances created by `planet2ebs` and how they were created.
 
 `ami/` - builds the AMI used for these operations
 
-Other typical EC2 operations such as deleting volumes and terminating instances are better done with the official AWS CLI.
-
-You can get that on Mac with `brew install ec2-api-tools`.
+Other typical EC2 operations such as deleting volumes and terminating instances are better done with the official AWS CLI. You can get that on Mac with `brew install ec2-api-tools`.
