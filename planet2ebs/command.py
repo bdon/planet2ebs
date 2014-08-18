@@ -64,7 +64,7 @@ print "Defaulting to region us-west-2"
 # If all you are doing is Copy you don't need much
 
 COPY_CONFIGS = {
-  1:{'instance_type':'t1.micro','hourly_cost':0.020}
+  1:{'instance_type':'m3.medium','hourly_cost':0.020}
 }
 
 # 4 levels of import performance
@@ -72,6 +72,7 @@ COPY_CONFIGS = {
 # level 2,3 - suitable for small countries
 # level 4 - you need to use this for planet imports
 # All imports require an instancestore.
+# Todo why do different sizes start with different mount states?
 
 IMPORT_CONFIGS = {
   'm3.medium':{'instance_type':'m3.medium','disk_size':4  ,'hourly_cost':0.070},
@@ -118,6 +119,9 @@ def doStart(conn, args):
   fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
   cm = objects.PbfSourceEbsCm(pgdata,conn,fabric.api,i.id,"pgdata")
   # TODO: should auto-mount on startup, edit fstab
+
+  # fabric.api.sudo('"/dev/xvdb /mnt/pgdata ext4 defaults,nofail,nobootwait 0 2" >> /etc/fstab')
+  # fabric.api.sudo("mount -a")
   mountpoint = cm.__enter__()
 
   pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
@@ -191,28 +195,36 @@ def doImport(conn, args, options):
   with objects.Instance(conn, timestamp, instance_type=options.instance_type) as i:
     fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
     with pbfsource.use(conn, fabric.api, i.id) as path:
+      fabric.api.sudo("mkfs -t ext4 /dev/xvdb")
+      fabric.api.sudo("mkdir /mnt/ephemeral")
+      fabric.api.sudo("mount /dev/xvdb /mnt/ephemeral")
+
       pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
       pg_conf_template = resource_string(__name__, 'pg_config/postgresql.conf.template')
       fabric.api.put(pg_hba,"/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
-      pg_conf = StringIO.StringIO(pg_conf_template.format("/mnt/main"))
+      pg_conf = StringIO.StringIO(pg_conf_template.format("/mnt/ephemeral/main"))
       fabric.api.put(pg_conf,"/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
       fabric.api.sudo("echo 'auto' > /etc/postgresql/9.3/main/start.conf")
       fabric.api.put(StringIO.StringIO(contents),"mapping.json")
-      fabric.api.sudo("mv /var/lib/postgresql/9.3/main /mnt/")
+      fabric.api.sudo("mv /var/lib/postgresql/9.3/main /mnt/ephemeral")
       fabric.api.sudo("service postgresql start")
       fabric.api.sudo("su postgres -c 'createuser -s importer'")
       fabric.api.sudo("su postgres -c 'createdb osm -O importer'")
       fabric.api.run("psql osm -U importer -c 'CREATE EXTENSION postgis;'")
-      fabric.api.run("imposm3 import -mapping={0} -read {1} -connection={2} -write -deployproduction -optimize".format(
+
+
+      fabric.api.sudo("mkdir /mnt/ephemeral/imposm_cache")
+      fabric.api.sudo("chown -R ubuntu:ubuntu /mnt/ephemeral/imposm_cache")
+      fabric.api.run("imposm3 import -cachedir=/mnt/ephemeral/imposm_cache -mapping={0} -read {1} -connection={2} -write -deployproduction -optimize".format(
         "mapping.json",
         path,
         "postgis:///osm?host=/var/run/postgresql\&user=importer"))
       fabric.api.sudo("service postgresql stop")
-      db_size_raw = fabric.api.sudo("du -s --block-size 1G /mnt/main | awk '{print $1}'").stdout
-      db_size_gb = int(db_size_raw)
+      db_size_raw = fabric.api.sudo("du -s --block-size 1GB /mnt/ephemeral/main | awk '{print $1}'").stdout
+      db_size_gb = int(math.ceil(int(db_size_raw) * 1.1))
       print "Database is {0} GB".format(db_size_gb)
       with objects.NewArtifact(conn, i, fabric.api,db_size_gb,"pgdata",{'planet2ebs':'pgdata','planet2ebs-source':pbf_url}) as artifact:
-        fabric.api.sudo("mv /mnt/main {0}".format(artifact.mountpoint))
+        fabric.api.sudo("mv /mnt/ephemeral/main {0}".format(artifact.mountpoint))
         pg_conf = StringIO.StringIO(pg_conf_template.format("/mnt/pgdata/main"))
         fabric.api.put(pg_conf,"/etc/postgresql/9.3/main/postgresql.conf",use_sudo=True)
       print "Output: " + artifact.output()
