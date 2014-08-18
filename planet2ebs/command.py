@@ -115,13 +115,13 @@ def doStart(conn, args):
   fabric.api.env.key_filename = "planet2ebs-{0}.pem".format(timestamp)
   fabric.api.env.connection_attempts = 10
 
-  i = objects.Instance(conn,timestamp,{'planet2ebs':'db','planet2ebs-source':pgdata_url}).__enter__()
+  i = objects.Instance(conn,timestamp,tags={'planet2ebs':'db','planet2ebs-source':pgdata_url}).__enter__()
   fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
   cm = objects.PbfSourceEbsCm(pgdata,conn,fabric.api,i.id,"pgdata")
   # TODO: should auto-mount on startup, edit fstab
 
-  # fabric.api.sudo('"/dev/xvdb /mnt/pgdata ext4 defaults,nofail,nobootwait 0 2" >> /etc/fstab')
-  # fabric.api.sudo("mount -a")
+  fabric.api.sudo('"/dev/xvdh /mnt/pgdata ext4 defaults,nofail,nobootwait 0 2" >> /etc/fstab')
+  fabric.api.sudo("mount -a")
   mountpoint = cm.__enter__()
 
   pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
