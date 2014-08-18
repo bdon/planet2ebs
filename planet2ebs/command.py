@@ -184,9 +184,9 @@ def doImport(conn, args, options):
   fabric.api.env.key_filename = "planet2ebs-{0}.pem".format(timestamp)
   fabric.api.env.connection_attempts = 10
 
-  if len(args) > 2:
-    print "Using mapping {0}".format(args[2])
-    contents = open(args[2]).read()
+  if options.mapping:
+    print "Using mapping {0}".format(options.mapping)
+    contents = open(options.mapping).read()
     json.loads(contents) #sanity check
   else:
     print "Using default mapping"
@@ -195,9 +195,13 @@ def doImport(conn, args, options):
   with objects.Instance(conn, timestamp, instance_type=options.instance_type) as i:
     fabric.api.env.host_string = "ubuntu@{0}".format(i.public_dns_name)
     with pbfsource.use(conn, fabric.api, i.id) as path:
-      fabric.api.sudo("mkfs -t ext4 /dev/xvdb")
-      fabric.api.sudo("mkdir /mnt/ephemeral")
-      fabric.api.sudo("mount /dev/xvdb /mnt/ephemeral")
+
+      if options.instance_type == "m3.medium":
+        fabric.api.sudo("mkdir /mnt/ephemeral")
+      else:
+        fabric.api.sudo("mkfs -t ext4 /dev/xvdb")
+        fabric.api.sudo("mkdir /mnt/ephemeral")
+        fabric.api.sudo("mount /dev/xvdb /mnt/ephemeral")
 
       pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
       pg_conf_template = resource_string(__name__, 'pg_config/postgresql.conf.template')
@@ -235,6 +239,9 @@ def run():
   parser.add_option("-i","--instance-type",
                   action="store", dest="instance_type", default="m3.medium",
                   help="Size of instance to use. Valid values for Import: m3.medium, r3.large, r3.xlarge, i2.xlarge.")
+  parser.add_option("-m","--mapping",
+                  action="store", dest="mapping", default=None,
+                  help="imposm3 mapping")
   (options, args) = parser.parse_args()
   print options
   if len(args) == 0:
