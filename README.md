@@ -1,5 +1,7 @@
 # planet2ebs
 
+## (_under development_)
+
 Command line tool for creating and running OpenStreetMap rendering databases on Amazon EC2. 
 
     $ planet2ebs copy http://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf
