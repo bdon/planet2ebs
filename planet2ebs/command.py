@@ -120,7 +120,7 @@ def doStart(conn, args):
   cm = objects.PbfSourceEbsCm(pgdata,conn,fabric.api,i.id,"pgdata")
   # TODO: should auto-mount on startup, edit fstab
 
-  fabric.api.sudo('"/dev/xvdh /mnt/pgdata ext4 defaults,nofail,nobootwait 0 2" >> /etc/fstab')
+  fabric.api.sudo('echo "/dev/xvdh /mnt/pgdata ext4 defaults,nofail,nobootwait 0 2" >> /etc/fstab')
   fabric.api.sudo("mount -a")
   mountpoint = cm.__enter__()
 
