@@ -119,6 +119,7 @@ class Instance:
       instance_type=self.instance_type,
       key_name=tmpnam,security_groups=[tmpnam],
       block_device_map=bdm)
+    time.sleep(10)
     instance = reservation.instances[0]
     print('Waiting for instance to start...')
     waitForState(instance, 'running')
