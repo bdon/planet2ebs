@@ -215,6 +215,7 @@ def doImport(conn, args, options):
       fabric.api.sudo("su postgres -c 'createuser -s importer'")
       fabric.api.sudo("su postgres -c 'createdb osm -O importer'")
       fabric.api.run("psql osm -U importer -c 'CREATE EXTENSION postgis;'")
+      fabric.api.run("psql osm -U importer -c 'CREATE EXTENSION hstore;'")
 
 
       fabric.api.sudo("mkdir /mnt/ephemeral/imposm_cache")
