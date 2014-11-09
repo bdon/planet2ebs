@@ -120,9 +120,9 @@ def doStart(conn, args):
   cm = objects.PbfSourceEbsCm(pgdata,conn,fabric.api,i.id,"pgdata")
   # TODO: should auto-mount on startup, edit fstab
 
+  mountpoint = cm.__enter__()
   fabric.api.sudo('echo "/dev/xvdh /mnt/pgdata ext4 defaults,nofail,nobootwait 0 2" >> /etc/fstab')
   fabric.api.sudo("mount -a")
-  mountpoint = cm.__enter__()
 
   pg_hba = StringIO.StringIO(resource_string(__name__, 'pg_config/pg_hba.conf'))
   fabric.api.put(pg_hba,"/etc/postgresql/9.3/main/pg_hba.conf",use_sudo=True)
