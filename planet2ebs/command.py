@@ -97,7 +97,7 @@ def doLs(conn):
   for i in conn.get_only_instances(filters={'tag-key':'planet2ebs'}):
     print i.id + "\t" + i.update() + "\t" + i.launch_time + "\t" + i.instance_type + "\t" + i.tags['planet2ebs'] + "\t" + i.tags['planet2ebs-source']
 
-def doStart(conn, args):
+def doStart(conn, args, options):
   print "Starting database from volume"
 
   pgdata_url = args[1]
@@ -133,8 +133,8 @@ def doStart(conn, args):
   fabric.api.sudo("echo 'auto' > /etc/postgresql/9.3/main/start.conf")
   fabric.api.sudo("chown -R postgres:postgres /mnt/pgdata")
   fabric.api.sudo("service postgresql start")
-  fabric.api.run("psql -U postgres -c \"CREATE USER render WITH PASSWORD 'default_password'\"",warn_only=True)
-  fabric.api.run("psql -U postgres -c \"ALTER USER render PASSWORD 'default_password'\"",warn_only=True)
+  fabric.api.run("psql -U postgres -c \"CREATE USER render WITH PASSWORD '{0}'\"".format(options.password),warn_only=True)
+  fabric.api.run("psql -U postgres -c \"ALTER USER render PASSWORD '{0}'\"".format(options.password),warn_only=True)
   fabric.api.run("psql -U postgres osm -c \"GRANT SELECT ON ALL TABLES IN SCHEMA public TO render\"",warn_only=True)
   print "Connect like this my friend: psql -U render -h {0} osm".format(i.public_dns_name)
 
@@ -243,6 +243,9 @@ def run():
   parser.add_option("-m","--mapping",
                   action="store", dest="mapping", default=None,
                   help="imposm3 mapping")
+  parser.add_option("-p","--password",
+                  action="store", dest="password", default="default_password",
+                  help="password for rendering database")
   (options, args) = parser.parse_args()
   print options
   if len(args) == 0:
@@ -261,7 +264,7 @@ def run():
   elif operation == "import":
     doImport(conn, args, options)
   elif operation == "start":
-    doStart(conn, args)
+    doStart(conn, args, options)
   elif operation == "ls":
     doLs(conn)
   else:
