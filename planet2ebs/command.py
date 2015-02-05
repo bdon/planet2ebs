@@ -55,9 +55,7 @@ except KeyError:
    sys.exit(1)
 
 AMI_MAPPING = {
- 'us-west-1':'ami-c7080482',
- 'us-west-2':'ami-77d69347',
- 'us-east-1':'ami-9e05d9f6'
+ 'us-west-2':'ami-8dc398bd'
 }
 print "Defaulting to region us-west-2"
 

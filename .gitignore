@@ -6,3 +6,4 @@ ami/secrets.json
 .env
 planet2ebs.egg-info/
 dist/
+secrets

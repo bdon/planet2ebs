@@ -13,7 +13,7 @@
       "instance_type": "m3.medium",
       "ssh_username": "ubuntu",
       "ami_name": "planet2ebs {{timestamp}}",
-      "ami_regions":["us-east-1","us-west-1","us-west-2"],
+      "ami_regions":["us-west-2"],
       "ami_groups":["all"],
       "ami_virtualization_type":"hvm"
     }
