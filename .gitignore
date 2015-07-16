@@ -7,3 +7,4 @@ ami/secrets.json
 planet2ebs.egg-info/
 dist/
 secrets
+*.egg/
