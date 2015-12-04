@@ -1,3 +1,5 @@
 boto
 fabric
 requests
+pycrypto
+ecdsa
