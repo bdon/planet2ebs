@@ -16,7 +16,10 @@ sudo apt-get install -y postgresql-9.3-postgis-2.1
 
 echo "disabled" | sudo tee /etc/postgresql/9.3/main/start.conf
 
-wget http://imposm.org/static/rel/imposm3-0.1dev-20140811-3f3c12e-linux-x86-64.tar.gz
-tar -xvzf imposm3-0.1dev-20140811-3f3c12e-linux-x86-64.tar.gz
-echo "export PATH=~/imposm3-0.1dev-20140811-3f3c12e-linux-x86-64:$PATH" >> ~/.profile
+wget http://imposm.org/static/rel/imposm3-0.1dev-20150515-593f252-linux-x86-64.tar.gz
+tar -xvzf imposm3-0.1dev-20150515-593f252-linux-x86-64.tar.gz
+echo "export PATH=~/imposm3-0.1dev-20150515-593f252-linux-x86-64:$PATH" >> ~/.profile
 #. ~/.profile
+
+# planet2ebs should be able to run on its own ami
+sudo apt-get install -y python-pip python-dev
